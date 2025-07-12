@@ -1,0 +1,117 @@
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    expose:
+      - "9090"
+    volumes:
+      - "{{ config_dir }}/prometheus:/etc/prometheus"
+      - "{{ data_dir }}/prometheus:/prometheus"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time={{ services.prometheus.retention }}'
+      - '--web.enable-lifecycle'
+    networks:
+      - {{ docker_network }}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.prometheus.rule=Host(`{{ subdomains.prometheus }}`)"
+      - "traefik.http.routers.prometheus.entrypoints=websecure"
+      - "traefik.http.routers.prometheus.tls.certresolver=letsencrypt"
+      - "traefik.http.services.prometheus.loadbalancer.server.port=9090"
+      - "traefik.http.routers.prometheus.middlewares=secure-headers"
+    deploy:
+      resources:
+        limits:
+          memory: {{ services.prometheus.memory_limit }}
+          cpus: '{{ services.prometheus.cpu_limit }}'
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    expose:
+      - "3000"
+    volumes:
+      - "{{ data_dir }}/grafana:/var/lib/grafana"
+      - "{{ config_dir }}/grafana/grafana.ini:/etc/grafana/grafana.ini"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=Nusatech-2025
+      - GF_SERVER_ROOT_URL=https://{{ subdomains.grafana }}
+      - GF_SERVER_SERVE_FROM_SUB_PATH=false
+    networks:
+      - {{ docker_network }}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.grafana.rule=Host(`{{ subdomains.grafana }}`)"
+      - "traefik.http.routers.grafana.entrypoints=websecure"
+      - "traefik.http.routers.grafana.tls.certresolver=letsencrypt"
+      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+      - "traefik.http.routers.grafana.middlewares=secure-headers"
+    deploy:
+      resources:
+        limits:
+          memory: {{ services.grafana.memory_limit }}
+          cpus: '{{ services.grafana.cpu_limit }}'
+
+  loki:
+    image: grafana/loki:latest
+    container_name: loki
+    expose:
+      - "3100"
+    volumes:
+      - "{{ config_dir }}/loki:/etc/loki"
+      - "{{ data_dir }}/loki:/loki"
+    command: -config.file=/etc/loki/loki.yml
+    networks:
+      - {{ docker_network }}
+    deploy:
+      resources:
+        limits:
+          memory: {{ services.loki.memory_limit }}
+          cpus: '{{ services.loki.cpu_limit }}'
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: alertmanager
+    expose:
+      - "9093"
+    volumes:
+      - "{{ config_dir }}/alertmanager:/etc/alertmanager"
+    networks:
+      - {{ docker_network }}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.alertmanager.rule=Host(`{{ subdomains.alertmanager }}`)"
+      - "traefik.http.routers.alertmanager.entrypoints=websecure"
+      - "traefik.http.routers.alertmanager.tls.certresolver=letsencrypt"
+      - "traefik.http.services.alertmanager.loadbalancer.server.port=9093"
+      - "traefik.http.routers.alertmanager.middlewares=secure-headers"
+    deploy:
+      resources:
+        limits:
+          memory: {{ services.alertmanager.memory_limit }}
+          cpus: '{{ services.alertmanager.cpu_limit }}'
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    expose:
+      - "9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.ignored-mount-points=^/(sys|proc|dev|host|etc)($|/)'
+    networks:
+      - {{ docker_network }}
+
+networks:
+  {{ docker_network }}:
+    external: true

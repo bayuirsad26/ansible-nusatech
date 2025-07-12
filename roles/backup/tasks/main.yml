@@ -1,0 +1,22 @@
+---
+- name: Create backup directory
+  ansible.builtin.file:
+    path: /opt/backups
+    state: directory
+    mode: '0755'
+
+- name: Create backup script
+  ansible.builtin.template:
+    src: backup.sh.j2
+    dest: /opt/backups/backup.sh
+    mode: '0755'
+
+- name: Schedule backup cron job
+  ansible.builtin.cron:
+    name: "Nusatech DevOps Backup"
+    cron_file: nusatech-devops-backup
+    minute: "0"
+    hour: "2"
+    job: "/opt/backups/backup.sh"
+    user: root
+  when: backup_enabled

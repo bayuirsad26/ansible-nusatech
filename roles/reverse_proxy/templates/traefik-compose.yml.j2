@@ -1,0 +1,32 @@
+services:
+  traefik:
+    image: traefik:v3.0
+    container_name: traefik
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"  # Traefik dashboard
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - "{{ config_dir }}/traefik:/etc/traefik:ro"
+      - "{{ data_dir }}/traefik:/data"
+      - "{{ logs_dir }}/traefik:/var/log/traefik"
+    networks:
+      - {{ docker_network }}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dashboard.rule=Host(`traefik.{{ domain }}`)"
+      - "traefik.http.routers.dashboard.entrypoints=websecure"
+      - "traefik.http.routers.dashboard.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.dashboard.service=api@internal"
+      - "traefik.http.routers.dashboard.middlewares=auth"
+    deploy:
+      resources:
+        limits:
+          memory: {{ services.traefik.memory_limit }}
+          cpus: '{{ services.traefik.cpu_limit }}'
+
+networks:
+  {{ docker_network }}:
+    external: true

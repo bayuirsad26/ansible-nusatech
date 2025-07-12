@@ -1,0 +1,63 @@
+services:
+  jenkins:
+    image: jenkins/jenkins:lts
+    container_name: jenkins
+    expose:
+      - "8080"
+      - "50000"
+    volumes:
+      - "{{ data_dir }}/jenkins:/var/jenkins_home"
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - JENKINS_OPTS="--httpPort=8080"
+      - JAVA_OPTS="-Djenkins.install.runSetupWizard=false -Xmx1024m"
+    networks:
+      - {{ docker_network }}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.jenkins.rule=Host(`{{ subdomains.jenkins }}`)"
+      - "traefik.http.routers.jenkins.entrypoints=websecure"
+      - "traefik.http.routers.jenkins.tls.certresolver=letsencrypt"
+      - "traefik.http.services.jenkins.loadbalancer.server.port=8080"
+      - "traefik.http.routers.jenkins.middlewares=secure-headers"
+    deploy:
+      resources:
+        limits:
+          memory: {{ services.jenkins.memory_limit }}
+          cpus: '{{ services.jenkins.cpu_limit }}'
+
+  mattermost:
+    image: mattermost/mattermost-team-edition:latest
+    container_name: mattermost
+    expose:
+      - "8065"
+    volumes:
+      - "{{ data_dir }}/mattermost/config:/mattermost/config:rw"
+      - "{{ data_dir }}/mattermost/data:/mattermost/data:rw"
+      - "{{ data_dir }}/mattermost/logs:/mattermost/logs:rw"
+      - "{{ data_dir }}/mattermost/plugins:/mattermost/plugins:rw"
+      - "{{ data_dir }}/mattermost/client-plugins:/mattermost/client/plugins:rw"
+    environment:
+      - MM_SQLSETTINGS_DRIVERNAME=sqlite3
+      - MM_SQLSETTINGS_DATASOURCE=/mattermost/data/mattermost.db
+      - MM_SERVICESETTINGS_SITEURL=https://{{ subdomains.mattermost }}
+      - MM_SERVICESETTINGS_ENABLEBOTACCOUNTCREATION=true
+      - MM_SERVICESETTINGS_ENABLEOAUTHSERVICEPROVIDER=true
+    networks:
+      - {{ docker_network }}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.mattermost.rule=Host(`{{ subdomains.mattermost }}`)"
+      - "traefik.http.routers.mattermost.entrypoints=websecure"
+      - "traefik.http.routers.mattermost.tls.certresolver=letsencrypt"
+      - "traefik.http.services.mattermost.loadbalancer.server.port=8065"
+      - "traefik.http.routers.mattermost.middlewares=secure-headers"
+    deploy:
+      resources:
+        limits:
+          memory: {{ services.mattermost.memory_limit }}
+          cpus: '{{ services.mattermost.cpu_limit }}'
+
+networks:
+  {{ docker_network }}:
+    external: true

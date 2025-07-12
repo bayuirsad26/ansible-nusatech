@@ -1,0 +1,57 @@
+---
+- name: Deploy Nusatech DevOps Stack
+  hosts: devops_servers
+  become: true
+  gather_facts: true
+  vars_files:
+    - group_vars/all.yml
+
+  pre_tasks:
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Install required system packages
+      ansible.builtin.apt:
+        name:
+          - curl
+          - wget
+          - git
+          - htop
+          - vim
+          - ufw
+          - fail2ban
+          - unattended-upgrades
+        state: present
+
+  roles:
+    - docker
+    - security
+    - reverse_proxy
+    - monitoring
+    - cicd
+    - backup
+
+  post_tasks:
+    - name: Display service URLs
+      ansible.builtin.debug:
+        msg: |
+          Nusatech DevOps Stack deployed successfully!
+
+          Service URLs (via Traefik reverse proxy):
+          - Mattermost: https://{{ subdomains.mattermost }}
+          - Jenkins: https://{{ subdomains.jenkins }}
+          - Grafana: https://{{ subdomains.grafana }}
+          - Prometheus: https://{{ subdomains.prometheus }}
+          - AlertManager: https://{{ subdomains.alertmanager }}
+
+          Direct access (if needed):
+          - Mattermost: http://{{ ansible_host }}:{{ services.mattermost.port }}
+          - Jenkins: http://{{ ansible_host }}:{{ services.jenkins.port }}
+          - Grafana: http://{{ ansible_host }}:{{ services.grafana.port }}
+          - Prometheus: http://{{ ansible_host }}:{{ services.prometheus.port }}
+          - AlertManager: http://{{ ansible_host }}:{{ services.alertmanager.port }}
+
+          Please ensure your DNS records point to this server IP for SSL to work properly.
+          Traefik will automatically obtain SSL certificates from Let's Encrypt.

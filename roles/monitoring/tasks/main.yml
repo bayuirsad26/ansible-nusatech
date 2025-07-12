@@ -1,0 +1,52 @@
+---
+- name: Create monitoring directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - "{{ data_dir }}/prometheus"
+    - "{{ data_dir }}/grafana"
+    - "{{ data_dir }}/loki"
+    - "{{ data_dir }}/alertmanager"
+    - "{{ config_dir }}/prometheus"
+    - "{{ config_dir }}/grafana"
+    - "{{ config_dir }}/loki"
+    - "{{ config_dir }}/alertmanager"
+
+- name: Create Prometheus configuration
+  ansible.builtin.template:
+    src: prometheus.yml.j2
+    dest: "{{ config_dir }}/prometheus/prometheus.yml"
+    mode: '0644'
+
+- name: Create Grafana configuration
+  ansible.builtin.template:
+    src: grafana.ini.j2
+    dest: "{{ config_dir }}/grafana/grafana.ini"
+    mode: '0644'
+
+- name: Create Loki configuration
+  ansible.builtin.template:
+    src: loki.yml.j2
+    dest: "{{ config_dir }}/loki/loki.yml"
+    mode: '0644'
+
+- name: Create AlertManager configuration
+  ansible.builtin.template:
+    src: alertmanager.yml.j2
+    dest: "{{ config_dir }}/alertmanager/alertmanager.yml"
+    mode: '0644'
+
+- name: Deploy monitoring stack
+  ansible.builtin.template:
+    src: monitoring-compose.yml.j2
+    dest: "{{ base_dir }}/monitoring-compose.yml"
+    mode: '0644'
+
+- name: Start monitoring services
+  ansible.builtin.shell: |
+    cd {{ base_dir }}
+    docker-compose -f monitoring-compose.yml up -d
+  register: monitoring_deploy
+  changed_when: monitoring_deploy.rc == 0

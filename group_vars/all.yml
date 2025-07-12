@@ -1,0 +1,57 @@
+---
+# Nusatech DevOps Stack Configuration
+project_name: nusatech-devops
+docker_network: nusatech_devops_network
+
+# Base directories
+base_dir: /opt/nusatech-devops
+data_dir: "{{ base_dir }}/data"
+config_dir: "{{ base_dir }}/config"
+logs_dir: "{{ base_dir }}/logs"
+
+# Domain configuration (update with your domain)
+domain: "nusatech.id"
+use_ssl: true
+
+# Resource allocation (optimized for 6GB RAM)
+services:
+  mattermost:
+    port: 8065
+    memory_limit: 1g
+    cpu_limit: "1.0"
+
+  jenkins:
+    port: 8080
+    memory_limit: 1.5g
+    cpu_limit: "1.5"
+
+  prometheus:
+    port: 9090
+    memory_limit: 512m
+    cpu_limit: "0.5"
+    retention: "30d"
+
+  grafana:
+    port: 3000
+    memory_limit: 512m
+    cpu_limit: "0.5"
+
+  loki:
+    port: 3100
+    memory_limit: 256m
+    cpu_limit: "0.3"
+
+  alertmanager:
+    port: 9093
+    memory_limit: 128m
+    cpu_limit: "0.2"
+
+# Security settings
+firewall_enabled: true
+fail2ban_enabled: true
+auto_updates_enabled: true
+
+# Backup configuration
+backup_enabled: true
+backup_schedule: "0 2 * * *"  # Daily at 2 AM
+backup_retention_days: 7

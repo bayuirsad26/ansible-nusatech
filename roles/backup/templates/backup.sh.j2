@@ -1,0 +1,57 @@
+#!/bin/bash
+# Nusatech DevOps Stack Backup Script
+
+set -e
+
+BACKUP_DIR="/opt/backups"
+TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+BACKUP_NAME="nusatech_devops_backup_${TIMESTAMP}"
+RETENTION_DAYS={{ backup_retention_days }}
+
+echo "Starting Nusatech DevOps backup at $(date)"
+
+# Create backup directory
+mkdir -p "${BACKUP_DIR}/${BACKUP_NAME}"
+
+# Stop services for consistent backup
+echo "Stopping services..."
+cd {{ base_dir }}
+docker-compose -f traefik-compose.yml stop
+docker-compose -f monitoring-compose.yml stop
+docker-compose -f cicd-compose.yml stop
+
+# Backup data directories
+echo "Backing up data..."
+tar -czf "${BACKUP_DIR}/${BACKUP_NAME}/data.tar.gz" -C {{ base_dir }} data/
+
+# Backup configurations
+echo "Backing up configurations..."
+tar -czf "${BACKUP_DIR}/${BACKUP_NAME}/config.tar.gz" -C {{ base_dir }} config/
+
+# Backup Docker images
+echo "Backing up Docker images..."
+docker save $(docker images --format "table {{.Repository}}:{{.Tag}}" | grep -v REPOSITORY) | gzip > "${BACKUP_DIR}/${BACKUP_NAME}/docker_images.tar.gz"
+
+# Start services again
+echo "Starting services..."
+docker-compose -f traefik-compose.yml up -d
+docker-compose -f monitoring-compose.yml up -d
+docker-compose -f cicd-compose.yml up -d
+
+# Create backup archive
+echo "Creating final backup archive..."
+cd "${BACKUP_DIR}"
+tar -czf "${BACKUP_NAME}.tar.gz" "${BACKUP_NAME}/"
+rm -rf "${BACKUP_NAME}/"
+
+# Cleanup old backups
+echo "Cleaning up old backups..."
+find "${BACKUP_DIR}" -name "nusatech_devops_backup_*.tar.gz" -mtime +${RETENTION_DAYS} -delete
+
+echo "Backup completed successfully at $(date)"
+echo "Backup saved as: ${BACKUP_DIR}/${BACKUP_NAME}.tar.gz"
+
+# Send notification to Mattermost (optional)
+# curl -X POST http://localhost:{{ services.mattermost.port }}/hooks/YOUR_WEBHOOK_ID \
+#   -H 'Content-Type: application/json' \
+#   -d "{\"text\": \"✅ Nusatech DevOps backup completed: ${BACKUP_NAME}.tar.gz\"}"

@@ -1,0 +1,42 @@
+---
+- name: Create Traefik directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - "{{ data_dir }}/traefik"
+    - "{{ config_dir }}/traefik"
+    - "{{ config_dir }}/traefik/dynamic"
+
+- name: Create Traefik static configuration
+  ansible.builtin.template:
+    src: traefik.yml.j2
+    dest: "{{ config_dir }}/traefik/traefik.yml"
+    mode: '0644'
+
+- name: Create Traefik dynamic configuration
+  ansible.builtin.template:
+    src: dynamic.yml.j2
+    dest: "{{ config_dir }}/traefik/dynamic/dynamic.yml"
+    mode: '0644'
+
+- name: Create Traefik Docker Compose file
+  ansible.builtin.template:
+    src: traefik-compose.yml.j2
+    dest: "{{ base_dir }}/traefik-compose.yml"
+    mode: '0644'
+
+- name: Start Traefik service
+  ansible.builtin.shell: |
+    cd {{ base_dir }}
+    docker-compose -f traefik-compose.yml up -d
+  register: traefik_deploy
+  changed_when: traefik_deploy.rc == 0
+
+- name: Wait for Traefik to start
+  ansible.builtin.wait_for:
+    port: 80
+    host: "{{ ansible_host }}"
+    delay: 10
+    timeout: 60
