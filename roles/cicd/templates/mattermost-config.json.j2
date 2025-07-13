@@ -29,8 +29,8 @@
     "EnableTeamListing": false
   },
   "SqlSettings": {
-    "DriverName": "sqlite3",
-    "DataSource": "/mattermost/data/mattermost.db",
+    "DriverName": "postgres",
+    "DataSource": "postgres://admin:{{ postgres_admin_password }}@postgres:5432/mattermost?sslmode=disable",
     "MaxIdleConns": 20,
     "MaxOpenConns": 300,
     "Trace": false,

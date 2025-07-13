@@ -1,85 +1,79 @@
 services:
   jenkins:
-    image: jenkins/jenkins:lts
+    image: jenkins/jenkins:2.504.3-lts
     container_name: jenkins
-    expose:
-      - "8080"
-      - "50000"
-    volumes:
-      - "{{ data_dir }}/jenkins:/var/jenkins_home"
-      - /var/run/docker.sock:/var/run/docker.sock
-    environment:
-      - JENKINS_OPTS="--httpPort=8080"
-      - JAVA_OPTS="-Djenkins.install.runSetupWizard=false -Xmx1024m"
+    restart: unless-stopped
     networks:
-      - {{ docker_network }}
+      - "{{ docker_network }}"
+    volumes:
+      - jenkins_data:/var/jenkins_home
+    environment:
+      - JENKINS_OPTS="--httpPort={{ services.jenkins.port }}"
+    deploy:
+      resources:
+        limits:
+          cpus: "{{ services.jenkins.cpu_limit }}"
+          memory: "{{ services.jenkins.memory_limit }}"
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.jenkins.rule=Host(`{{ subdomains.jenkins }}`)"
       - "traefik.http.routers.jenkins.entrypoints=websecure"
       - "traefik.http.routers.jenkins.tls.certresolver=letsencrypt"
-      - "traefik.http.services.jenkins.loadbalancer.server.port=8080"
-      - "traefik.http.routers.jenkins.middlewares=secure-headers"
-    deploy:
-      resources:
-        limits:
-          memory: {{ services.jenkins.memory_limit }}
-          cpus: '{{ services.jenkins.cpu_limit }}'
-
-  postgres:
-    image: postgres:13
-    container_name: postgres
-    environment:
-      - POSTGRES_DB=mattermost
-      - POSTGRES_USER=mattermost
-      - POSTGRES_PASSWORD={{ postgres_admin_password }}
-      - POSTGRES_HOST_AUTH_METHOD=trust
-    volumes:
-      - "{{ data_dir }}/mattermost/postgres:/var/lib/postgresql/data"
-    networks:
-      - {{ docker_network }}
-    deploy:
-      resources:
-        limits:
-          memory: 256m
-          cpus: '0.3'
+      - "traefik.http.services.jenkins.loadbalancer.server.port={{ services.jenkins.port }}"
 
   mattermost:
-    image: mattermost/mattermost-team-edition:latest
+    image: mattermost/mattermost-team-edition:10.9.1
     container_name: mattermost
-    expose:
-      - "8065"
-    depends_on:
-      - postgres
-    volumes:
-      - "{{ data_dir }}/mattermost/config:/mattermost/config:rw"
-      - "{{ data_dir }}/mattermost/data:/mattermost/data:rw"
-      - "{{ data_dir }}/mattermost/logs:/mattermost/logs:rw"
-      - "{{ data_dir }}/mattermost/plugins:/mattermost/plugins:rw"
-      - "{{ data_dir }}/mattermost/client-plugins:/mattermost/client/plugins:rw"
-    environment:
-      - MM_SQLSETTINGS_DRIVERNAME=postgres
-      - MM_SQLSETTINGS_DATASOURCE=postgres://mattermost:{{ postgres_admin_password }}@postgres:5432/mattermost?sslmode=disable&connect_timeout=10
-      - MM_SERVICESETTINGS_SITEURL=https://{{ subdomains.mattermost }}
-      - MM_SERVICESETTINGS_ENABLEBOTACCOUNTCREATION=true
-      - MM_SERVICESETTINGS_ENABLEOAUTHSERVICEPROVIDER=true
-      - MM_FILESETTINGS_DRIVERNAME=local
-      - MM_FILESETTINGS_DIRECTORY=/mattermost/data/
+    restart: unless-stopped
     networks:
-      - {{ docker_network }}
+      - "{{ docker_network }}"
+    volumes:
+      - "{{ config_dir }}/mattermost/config.json:/mattermost/config/config.json:rw"
+      - mattermost_data:/mattermost/data
+      - mattermost_logs:/mattermost/logs
+      - mattermost_plugins:/mattermost/plugins
+      - mattermost_client_plugins:/mattermost/client/plugins
+    user: "2000:2000"
+    deploy:
+      resources:
+        limits:
+          cpus: "{{ services.mattermost.cpu_limit }}"
+          memory: "{{ services.mattermost.memory_limit }}"
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.mattermost.rule=Host(`{{ subdomains.mattermost }}`)"
       - "traefik.http.routers.mattermost.entrypoints=websecure"
       - "traefik.http.routers.mattermost.tls.certresolver=letsencrypt"
-      - "traefik.http.services.mattermost.loadbalancer.server.port=8065"
-      - "traefik.http.routers.mattermost.middlewares=secure-headers"
+      - "traefik.http.services.mattermost.loadbalancer.server.port={{ services.mattermost.port }}"
+    depends_on:
+      - postgres
+
+  postgres:
+    image: postgres:17.5-alpine
+    container_name: postgres
+    restart: unless-stopped
+    networks:
+      - "{{ docker_network }}"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD={{ postgres_admin_password }}
+      - POSTGRES_DB=mattermost
     deploy:
       resources:
         limits:
-          memory: {{ services.mattermost.memory_limit }}
-          cpus: '{{ services.mattermost.cpu_limit }}'
+          cpus: "0.5"
+          memory: "512m"
 
 networks:
-  {{ docker_network }}:
+  "{{ docker_network }}":
     external: true
+
+volumes:
+  jenkins_data:
+  mattermost_data:
+  mattermost_logs:
+  mattermost_plugins:
+  mattermost_client_plugins:
+  postgres_data:

@@ -1,42 +1,14 @@
 ---
-- name: Create monitoring directories
+- name: Create monitoring configuration directories on host
   ansible.builtin.file:
     path: "{{ item }}"
     state: directory
     mode: '0755'
   loop:
-    - "{{ data_dir }}/prometheus"
-    - "{{ data_dir }}/grafana"
-    - "{{ data_dir }}/loki"
-    - "{{ data_dir }}/alertmanager"
     - "{{ config_dir }}/prometheus"
     - "{{ config_dir }}/grafana"
     - "{{ config_dir }}/loki"
     - "{{ config_dir }}/alertmanager"
-
-- name: Set Grafana directory permissions
-  ansible.builtin.file:
-    path: "{{ data_dir }}/grafana"
-    owner: 472
-    group: 0
-    mode: '0755'
-    recurse: true
-
-- name: Set Prometheus directory permissions
-  ansible.builtin.file:
-    path: "{{ data_dir }}/prometheus"
-    owner: 65534
-    group: 65534
-    mode: '0755'
-    recurse: true
-
-- name: Set Loki directory permissions
-  ansible.builtin.file:
-    path: "{{ data_dir }}/loki"
-    owner: 10001
-    group: 10001
-    mode: '0755'
-    recurse: true
 
 - name: Create Prometheus configuration
   ansible.builtin.template:

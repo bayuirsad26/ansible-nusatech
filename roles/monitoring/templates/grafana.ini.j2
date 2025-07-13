@@ -1,34 +1,47 @@
-[server]
-http_port = 3000
-domain = {{ subdomains.grafana }}
-root_url = https://{{ subdomains.grafana }}
-serve_from_sub_path = false
-
-[security]
-admin_user = admin
-admin_password = {{ grafana_admin_password }}
-
-[users]
-allow_sign_up = false
-
-[auth.anonymous]
-enabled = false
-
-[dashboards]
-default_home_dashboard_path = /var/lib/grafana/dashboards/overview.json
-
-[unified_alerting]
-enabled = true
-
-[alerting]
-# Remove this section - legacy alerting is deprecated
-
-[log]
-mode = console
-level = info
+[DEFAULT]
+instance_name = {{ project_name }}
 
 [paths]
 data = /var/lib/grafana
 logs = /var/log/grafana
 plugins = /var/lib/grafana/plugins
 provisioning = /etc/grafana/provisioning
+
+[server]
+http_port = 3000
+domain = {{ subdomains.grafana }}
+root_url = https://{{ subdomains.grafana }}
+enable_gzip = true
+
+[database]
+type = sqlite3
+path = /var/lib/grafana/grafana.db
+
+[security]
+admin_user = admin
+admin_password = {{ grafana_admin_password }}
+
+[auth]
+disable_login_form = false
+
+[auth.anonymous]
+enabled = false
+
+[auth.basic]
+enabled = true
+
+[analytics]
+reporting_enabled = false
+check_for_updates = true
+
+[grafana_net]
+url = https://grafana.net
+
+[log]
+mode = console
+level = info
+
+[plugins]
+enable_alpha = true
+app_tls_skip_verify_insecure = true
+preinstall_apps =

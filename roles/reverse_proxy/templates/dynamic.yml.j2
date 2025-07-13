@@ -1,26 +1,17 @@
 http:
   middlewares:
-    secure-headers:
+    security-headers:
       headers:
-        accessControlAllowMethods:
-          - GET
-          - OPTIONS
-          - PUT
-          - POST
-          - DELETE
-        accessControlMaxAge: 100
-        hostsProxyHeaders:
-          - "X-Forwarded-Host"
-        referrerPolicy: "same-origin"
-        contentTypeNosniff: true
-        browserXssFilter: true
         forceSTSHeader: true
         stsIncludeSubdomains: true
-        stsSeconds: 31536000
         stsPreload: true
+        stsSeconds: 31536000
+        browserXssFilter: true
+        contentTypeNosniff: true
         frameDeny: true
+        sslRedirect: true
 
-    auth:
+    dashboard-auth:
       basicAuth:
         users:
           - "admin:{{ traefik_admin_password }}"

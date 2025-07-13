@@ -1,32 +1,31 @@
 services:
   traefik:
-    image: traefik:v3.0
+    image: traefik:v3.4.4
     container_name: traefik
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - "{{ docker_network }}"
     ports:
       - "80:80"
       - "443:443"
-      - "8080:8080"  # Traefik dashboard
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - "{{ config_dir }}/traefik:/etc/traefik:ro"
-      - "{{ data_dir }}/traefik:/data"
-      - "{{ logs_dir }}/traefik:/var/log/traefik"
-    networks:
-      - {{ docker_network }}
+      - "{{ config_dir }}/traefik:/etc/traefik"
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.dashboard.rule=Host(`traefik.{{ domain }}`)"
-      - "traefik.http.routers.dashboard.entrypoints=websecure"
-      - "traefik.http.routers.dashboard.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.dashboard.service=api@internal"
-      - "traefik.http.routers.dashboard.middlewares=auth"
+      - "traefik.http.routers.traefik-dashboard.rule=Host(`traefik.{{ domain }}`)"
+      - "traefik.http.routers.traefik-dashboard.service=api@internal"
+      - "traefik.http.routers.traefik-dashboard.entrypoints=websecure"
+      - "traefik.http.routers.traefik-dashboard.tls.certresolver=myresolver"
+      - "traefik.http.routers.traefik-dashboard.middlewares=security-headers@file,dashboard-auth@file"
     deploy:
       resources:
         limits:
-          memory: {{ services.traefik.memory_limit }}
-          cpus: '{{ services.traefik.cpu_limit }}'
+          memory: "{{ services.traefik.memory_limit }}"
+          cpus: "{{ services.traefik.cpu_limit }}"
 
 networks:
-  {{ docker_network }}:
+  "{{ docker_network }}":
     external: true

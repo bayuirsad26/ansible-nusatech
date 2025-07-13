@@ -1,126 +1,104 @@
 services:
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:v3.4.2
     container_name: prometheus
-    user: "65534:65534"
-    expose:
-      - "9090"
+    restart: unless-stopped
+    networks:
+      - "{{ docker_network }}"
     volumes:
-      - "{{ config_dir }}/prometheus:/etc/prometheus"
-      - "{{ data_dir }}/prometheus:/prometheus"
+      - "{{ config_dir }}/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro"
+      - prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
-      - '--web.console.libraries=/etc/prometheus/console_libraries'
-      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
       - '--storage.tsdb.retention.time={{ services.prometheus.retention }}'
-      - '--web.enable-lifecycle'
-      - '--web.enable-admin-api'
-    networks:
-      - {{ docker_network }}
+    deploy:
+      resources:
+        limits:
+          cpus: "{{ services.prometheus.cpu_limit }}"
+          memory: "{{ services.prometheus.memory_limit }}"
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.prometheus.rule=Host(`{{ subdomains.prometheus }}`)"
       - "traefik.http.routers.prometheus.entrypoints=websecure"
       - "traefik.http.routers.prometheus.tls.certresolver=letsencrypt"
       - "traefik.http.services.prometheus.loadbalancer.server.port=9090"
-      - "traefik.http.routers.prometheus.middlewares=secure-headers"
+
+  grafana:
+    image: grafana/grafana:12.0.2
+    container_name: grafana
+    restart: unless-stopped
+    networks:
+      - "{{ docker_network }}"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - "{{ config_dir }}/grafana/grafana.ini:/etc/grafana/grafana.ini:ro"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD={{ grafana_admin_password }}
     deploy:
       resources:
         limits:
-          memory: {{ services.prometheus.memory_limit }}
-          cpus: '{{ services.prometheus.cpu_limit }}'
-
-  grafana:
-    image: grafana/grafana:latest
-    container_name: grafana
-    user: "472:0"
-    expose:
-      - "3000"
-    volumes:
-      - "{{ data_dir }}/grafana:/var/lib/grafana"
-      - "{{ config_dir }}/grafana/grafana.ini:/etc/grafana/grafana.ini"
-    environment:
-      - GF_SECURITY_ADMIN_PASSWORD={{ grafana_admin_password }}
-      - GF_SERVER_ROOT_URL=https://{{ subdomains.grafana }}
-      - GF_SERVER_SERVE_FROM_SUB_PATH=false
-      - GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS=
-      - GF_INSTALL_PLUGINS=grafana-clock-panel
-      - GF_DATABASE_WAL=true
-      - GF_DATABASE_CACHE_MODE=private
-    networks:
-      - {{ docker_network }}
+          cpus: "{{ services.grafana.cpu_limit }}"
+          memory: "{{ services.grafana.memory_limit }}"
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.grafana.rule=Host(`{{ subdomains.grafana }}`)"
       - "traefik.http.routers.grafana.entrypoints=websecure"
       - "traefik.http.routers.grafana.tls.certresolver=letsencrypt"
       - "traefik.http.services.grafana.loadbalancer.server.port=3000"
-      - "traefik.http.routers.grafana.middlewares=secure-headers"
-    deploy:
-      resources:
-        limits:
-          memory: {{ services.grafana.memory_limit }}
-          cpus: '{{ services.grafana.cpu_limit }}'
 
   loki:
-    image: grafana/loki:latest
+    image: grafana/loki:3.5.2
     container_name: loki
-    user: "10001:10001"
-    expose:
-      - "3100"
-    volumes:
-      - "{{ config_dir }}/loki:/etc/loki"
-      - "{{ data_dir }}/loki:/loki"
-    command: -config.file=/etc/loki/loki.yml
+    restart: unless-stopped
     networks:
-      - {{ docker_network }}
+      - "{{ docker_network }}"
+    volumes:
+      - loki_data:/loki
+      - "{{ config_dir }}/loki/loki.yml:/etc/loki/config.yml:ro"
+    command: -config.file=/etc/loki/config.yml
     deploy:
       resources:
         limits:
-          memory: {{ services.loki.memory_limit }}
-          cpus: '{{ services.loki.cpu_limit }}'
+          cpus: "{{ services.loki.cpu_limit }}"
+          memory: "{{ services.loki.memory_limit }}"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.loki.rule=Host(`loki.{{ domain }}`)"
+      - "traefik.http.routers.loki.entrypoints=websecure"
+      - "traefik.http.routers.loki.tls.certresolver=letsencrypt"
+      - "traefik.http.services.loki.loadbalancer.server.port=3100"
 
   alertmanager:
-    image: prom/alertmanager:latest
+    image: prom/alertmanager:v0.28.1
     container_name: alertmanager
-    expose:
-      - "9093"
-    volumes:
-      - "{{ config_dir }}/alertmanager:/etc/alertmanager"
+    restart: unless-stopped
     networks:
-      - {{ docker_network }}
+      - "{{ docker_network }}"
+    volumes:
+      - alertmanager_data:/alertmanager
+      - "{{ config_dir }}/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro"
+    command: --config.file=/etc/alertmanager/alertmanager.yml --storage.path=/alertmanager
+    deploy:
+      resources:
+        limits:
+          cpus: "{{ services.alertmanager.cpu_limit }}"
+          memory: "{{ services.alertmanager.memory_limit }}"
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.alertmanager.rule=Host(`{{ subdomains.alertmanager }}`)"
       - "traefik.http.routers.alertmanager.entrypoints=websecure"
       - "traefik.http.routers.alertmanager.tls.certresolver=letsencrypt"
       - "traefik.http.services.alertmanager.loadbalancer.server.port=9093"
-      - "traefik.http.routers.alertmanager.middlewares=secure-headers"
-    deploy:
-      resources:
-        limits:
-          memory: {{ services.alertmanager.memory_limit }}
-          cpus: '{{ services.alertmanager.cpu_limit }}'
-
-  node-exporter:
-    image: prom/node-exporter:latest
-    container_name: node-exporter
-    expose:
-      - "9100"
-    volumes:
-      - /proc:/host/proc:ro
-      - /sys:/host/sys:ro
-      - /:/rootfs:ro
-    command:
-      - '--path.procfs=/host/proc'
-      - '--path.rootfs=/rootfs'
-      - '--path.sysfs=/host/sys'
-      - '--collector.filesystem.ignored-mount-points=^/(sys|proc|dev|host|etc)($|/)'
-      - '--no-collector.udev'
-    networks:
-      - {{ docker_network }}
 
 networks:
-  {{ docker_network }}:
+  "{{ docker_network }}":
     external: true
+
+volumes:
+  prometheus_data:
+  grafana_data:
+  loki_data:
+  alertmanager_data:

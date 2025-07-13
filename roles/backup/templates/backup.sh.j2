@@ -1,74 +1,53 @@
 #!/bin/bash
-# Nusatech DevOps Stack Backup Script
+set -euo pipefail
 
-set -e
-
+# Configuration
 BACKUP_DIR="/opt/backups"
-TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
-BACKUP_NAME="nusatech_devops_backup_${TIMESTAMP}"
 RETENTION_DAYS={{ backup_retention_days }}
+TIMESTAMP=$(date +"%Y%m%d-%H%M%S")
+BACKUP_FILE="$BACKUP_DIR/nusatech-devops-backup-$TIMESTAMP.tar.gz"
 
-echo "Starting Nusatech DevOps backup at $(date)"
+# List of all named volumes used by the services
+VOLUMES=(
+  "traefik_data"
+  "prometheus_data"
+  "grafana_data"
+  "loki_data"
+  "alertmanager_data"
+  "jenkins_data"
+  "mattermost_data"
+  "mattermost_logs"
+  "mattermost_plugins"
+  "mattermost_client_plugins"
+  "postgres_data"
+)
 
-# Create backup directory
-mkdir -p "${BACKUP_DIR}/${BACKUP_NAME}"
+echo "Starting backup of Nusatech DevOps stack..."
 
-# Stop services for consistent backup
-echo "Stopping services..."
-cd {{ base_dir }}
-docker compose -f traefik-compose.yml stop
-docker compose -f monitoring-compose.yml stop
-docker compose -f cicd-compose.yml stop
+# Create a temporary directory to stage volume data
+STAGING_DIR=$(mktemp -d)
+trap 'rm -rf -- "$STAGING_DIR"' EXIT
 
-# Backup data directories
-echo "Backing up data..."
-tar -czf "${BACKUP_DIR}/${BACKUP_NAME}/data.tar.gz" -C {{ base_dir }} data/
+# Backup each volume
+for volume in "${VOLUMES[@]}"; do
+  echo "Backing up volume: $volume"
+  docker run --rm \
+    -v "${volume}:/data:ro" \
+    -v "${STAGING_DIR}:/backup" \
+    alpine \
+    tar -czf "/backup/${volume}.tar.gz" -C /data .
+done
 
-# Backup configurations
-echo "Backing up configurations..."
-tar -czf "${BACKUP_DIR}/${BACKUP_NAME}/config.tar.gz" -C {{ base_dir }} config/
+# Backup configuration files
+echo "Backing up configuration files..."
+tar -czf "${STAGING_DIR}/configs.tar.gz" -C "{{ base_dir }}" .
 
-# Backup compose files
-echo "Backing up compose files..."
-tar -czf "${BACKUP_DIR}/${BACKUP_NAME}/compose.tar.gz" -C {{ base_dir }} *.yml
+# Create the final backup archive
+echo "Creating final archive: $BACKUP_FILE"
+tar -czf "$BACKUP_FILE" -C "$STAGING_DIR" .
 
-# List running containers for reference
-echo "Saving container list..."
-docker ps -a > "${BACKUP_DIR}/${BACKUP_NAME}/containers.txt"
+# Clean up old backups
+echo "Cleaning up old backups (older than $RETENTION_DAYS days)..."
+find "$BACKUP_DIR" -type f -name "*.tar.gz" -mtime +$RETENTION_DAYS -delete
 
-# Save Docker images list (without actual images to save space and avoid template issues)
-echo "Saving Docker images list..."
-docker images > "${BACKUP_DIR}/${BACKUP_NAME}/images.txt"
-
-# Backup specific Docker images (if needed)
-echo "Backing up critical Docker images..."
-docker save traefik:v3.0 | gzip > "${BACKUP_DIR}/${BACKUP_NAME}/traefik.tar.gz" 2>/dev/null || echo "Traefik image not found"
-docker save jenkins/jenkins:lts | gzip > "${BACKUP_DIR}/${BACKUP_NAME}/jenkins.tar.gz" 2>/dev/null || echo "Jenkins image not found"
-docker save grafana/grafana:latest | gzip > "${BACKUP_DIR}/${BACKUP_NAME}/grafana.tar.gz" 2>/dev/null || echo "Grafana image not found"
-
-# Start services again
-echo "Starting services..."
-docker compose -f traefik-compose.yml up -d
-docker compose -f monitoring-compose.yml up -d
-docker compose -f cicd-compose.yml up -d
-
-# Create backup archive
-echo "Creating final backup archive..."
-cd "${BACKUP_DIR}"
-tar -czf "${BACKUP_NAME}.tar.gz" "${BACKUP_NAME}/"
-rm -rf "${BACKUP_NAME}/"
-
-# Cleanup old backups
-echo "Cleaning up old backups..."
-find "${BACKUP_DIR}" -name "nusatech_devops_backup_*.tar.gz" -mtime +${RETENTION_DAYS} -delete
-
-echo "Backup completed successfully at $(date)"
-echo "Backup saved as: ${BACKUP_DIR}/${BACKUP_NAME}.tar.gz"
-
-# Send notification to Mattermost (optional)
-{% if notifications.mattermost_webhook and notifications.mattermost_webhook != '' %}
-curl -X POST "{{ notifications.mattermost_webhook }}" \
-  -H 'Content-Type: application/json' \
-  -d "{\"text\": \"✅ Nusatech DevOps backup completed: ${BACKUP_NAME}.tar.gz\"}" \
-  || echo "Failed to send Mattermost notification"
-{% endif %}
+echo "Backup completed successfully!"

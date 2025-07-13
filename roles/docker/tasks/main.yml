@@ -16,7 +16,7 @@
   ansible.builtin.apt:
     update_cache: true
 
-- name: Install ca-certificates and curl
+- name: Install prerequisites for Docker
   ansible.builtin.apt:
     name:
       - ca-certificates
@@ -39,9 +39,9 @@
 - name: Add Docker repository to Apt sources
   ansible.builtin.apt_repository:
     repo: >
-      deb [arch={{ ansible_architecture }} signed-by=/etc/apt/keyrings/docker.asc]
+      deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc]
       https://download.docker.com/linux/ubuntu
-      {{ ansible_lsb.codename }} stable
+      {{ ansible_distribution_release }} stable
     state: present
     filename: docker
 
@@ -64,16 +64,6 @@
     name: docker
     state: started
     enabled: true
-
-- name: Verify Docker installation with hello-world (as root)
-  ansible.builtin.command: docker run --rm hello-world
-  register: docker_hello_world
-  changed_when: false
-
-- name: Display Docker verification result
-  ansible.builtin.debug:
-    msg: "Docker installation verified successfully!"
-  when: docker_hello_world.rc == 0
 
 - name: Create docker group
   ansible.builtin.group:
@@ -120,14 +110,3 @@
   community.docker.docker_network:
     name: "{{ docker_network }}"
     driver: bridge
-
-- name: Create project directories
-  ansible.builtin.file:
-    path: "{{ item }}"
-    state: directory
-    mode: '0755'
-  loop:
-    - "{{ base_dir }}"
-    - "{{ data_dir }}"
-    - "{{ config_dir }}"
-    - "{{ logs_dir }}"

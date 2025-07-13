@@ -1,66 +1,35 @@
 ---
-- name: Create CI/CD directories
+- name: Create CI/CD configuration directories on host
   ansible.builtin.file:
     path: "{{ item }}"
     state: directory
     mode: '0755'
   loop:
-    - "{{ data_dir }}/jenkins"
-    - "{{ data_dir }}/mattermost"
-    - "{{ data_dir }}/mattermost/config"
-    - "{{ data_dir }}/mattermost/data"
-    - "{{ data_dir }}/mattermost/logs"
-    - "{{ data_dir }}/mattermost/plugins"
-    - "{{ data_dir }}/mattermost/client-plugins"
     - "{{ config_dir }}/jenkins"
     - "{{ config_dir }}/mattermost"
 
-- name: Set Jenkins directory permissions
-  ansible.builtin.file:
-    path: "{{ data_dir }}/jenkins"
-    owner: 1000
-    group: 1000
-    mode: '0755'
-    recurse: true
-
-- name: Set Mattermost directory permissions
-  ansible.builtin.file:
-    path: "{{ item }}"
-    owner: 2000
-    group: 2000
-    mode: '0755'
-    recurse: true
-  loop:
-    - "{{ data_dir }}/mattermost"
-
-- name: Create Mattermost configuration
+- name: Create Mattermost configuration from template
   ansible.builtin.template:
     src: mattermost-config.json.j2
     dest: "{{ config_dir }}/mattermost/config.json"
     mode: '0644'
 
-- name: Deploy CI/CD stack
+- name: Deploy CI/CD stack from template
   ansible.builtin.template:
     src: cicd-compose.yml.j2
     dest: "{{ base_dir }}/cicd-compose.yml"
     mode: '0644'
 
-- name: Start CI/CD services
+- name: Start CI/CD services using Docker Compose
   ansible.builtin.shell: |
     cd {{ base_dir }}
     docker compose -f cicd-compose.yml up -d
   register: cicd_deploy
   changed_when: cicd_deploy.rc == 0
 
-- name: Wait for Jenkins to start
-  ansible.builtin.wait_for:
-    port: "{{ services.jenkins.port }}"
-    host: "{{ ansible_host }}"
-    delay: 30
-    timeout: 300
-
 - name: Get Jenkins initial admin password
-  ansible.builtin.shell: docker exec $(docker ps -qf "name=jenkins") cat /var/jenkins_home/secrets/initialAdminPassword
+  ansible.builtin.shell: >
+    docker exec $(docker ps -qf "name=jenkins") cat /var/jenkins_home/secrets/initialAdminPassword
   register: jenkins_password
   changed_when: false
   ignore_errors: true
