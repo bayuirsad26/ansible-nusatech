@@ -30,7 +30,7 @@
 - name: Start Traefik service
   ansible.builtin.shell: |
     cd {{ base_dir }}
-    docker-compose -f traefik-compose.yml up -d
+    docker compose -f traefik-compose.yml up -d
   register: traefik_deploy
   changed_when: traefik_deploy.rc == 0
 

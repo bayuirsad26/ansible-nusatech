@@ -1,11 +1,27 @@
 ---
-- name: Install prerequisites
+- name: Uninstall old Docker versions
+  ansible.builtin.apt:
+    name:
+      - docker.io
+      - docker-doc
+      - docker-compose
+      - docker-compose-v2
+      - podman-docker
+      - containerd
+      - runc
+    state: absent
+  failed_when: false
+
+- name: Update apt package index
+  ansible.builtin.apt:
+    update_cache: true
+
+- name: Install ca-certificates and curl
   ansible.builtin.apt:
     name:
       - ca-certificates
       - curl
     state: present
-    update_cache: true
 
 - name: Create directory for Docker GPG key
   ansible.builtin.file:
@@ -19,18 +35,19 @@
     dest: /etc/apt/keyrings/docker.asc
     mode: '0644'
     force: true
-    checksum: sha256:55242402121743a492a9c37b7774d3f3801826a570081e665d5065e94b297920 # Checksum for added security
 
-- name: Add Docker repository
+- name: Add Docker repository to Apt sources
   ansible.builtin.apt_repository:
-    repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+    repo: >
+      deb [arch={{ ansible_architecture }} signed-by=/etc/apt/keyrings/docker.asc]
+      https://download.docker.com/linux/ubuntu
+      {{ ansible_lsb.codename }} stable
     state: present
     filename: docker
 
-- name: Update apt cache
+- name: Update apt package index after adding Docker repository
   ansible.builtin.apt:
     update_cache: true
-  changed_when: false
 
 - name: Install Docker packages
   ansible.builtin.apt:
@@ -42,11 +59,62 @@
       - docker-compose-plugin
     state: present
 
-- name: Ensure docker service is running and enabled
+- name: Start and enable Docker service
   ansible.builtin.systemd:
     name: docker
     state: started
     enabled: true
+
+- name: Verify Docker installation with hello-world (as root)
+  ansible.builtin.command: docker run --rm hello-world
+  register: docker_hello_world
+  changed_when: false
+
+- name: Display Docker verification result
+  ansible.builtin.debug:
+    msg: "Docker installation verified successfully!"
+  when: docker_hello_world.rc == 0
+
+- name: Create docker group
+  ansible.builtin.group:
+    name: docker
+    state: present
+
+- name: Add user to docker group
+  ansible.builtin.user:
+    name: "{{ ansible_user }}"
+    groups: docker
+    append: true
+  when: ansible_user != "root"
+
+- name: Configure Docker to start on boot with systemd
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    enabled: true
+  loop:
+    - docker.service
+    - containerd.service
+
+- name: Configure Docker daemon with logging options
+  ansible.builtin.copy:
+    content: |
+      {
+        "log-driver": "json-file",
+        "log-opts": {
+          "max-size": "10m",
+          "max-file": "3"
+        },
+        "storage-driver": "overlay2"
+      }
+    dest: /etc/docker/daemon.json
+    mode: '0644'
+  notify: Restart docker
+
+- name: Ensure Docker daemon configuration directory exists
+  ansible.builtin.file:
+    path: /etc/docker
+    state: directory
+    mode: '0755'
 
 - name: Create Docker network
   community.docker.docker_network:

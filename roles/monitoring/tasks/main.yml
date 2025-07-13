@@ -47,6 +47,6 @@
 - name: Start monitoring services
   ansible.builtin.shell: |
     cd {{ base_dir }}
-    docker-compose -f monitoring-compose.yml up -d
+    docker compose -f monitoring-compose.yml up -d
   register: monitoring_deploy
   changed_when: monitoring_deploy.rc == 0
