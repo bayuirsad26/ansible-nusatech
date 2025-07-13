@@ -1,9 +1,8 @@
-version: '3.8'
-
 services:
   prometheus:
     image: prom/prometheus:latest
     container_name: prometheus
+    user: "65534:65534"
     expose:
       - "9090"
     volumes:
@@ -16,6 +15,7 @@ services:
       - '--web.console.templates=/etc/prometheus/consoles'
       - '--storage.tsdb.retention.time={{ services.prometheus.retention }}'
       - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
     networks:
       - {{ docker_network }}
     labels:
@@ -34,15 +34,20 @@ services:
   grafana:
     image: grafana/grafana:latest
     container_name: grafana
+    user: "472:0"
     expose:
       - "3000"
     volumes:
       - "{{ data_dir }}/grafana:/var/lib/grafana"
       - "{{ config_dir }}/grafana/grafana.ini:/etc/grafana/grafana.ini"
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=Nusatech-2025
+      - GF_SECURITY_ADMIN_PASSWORD={{ grafana_admin_password }}
       - GF_SERVER_ROOT_URL=https://{{ subdomains.grafana }}
       - GF_SERVER_SERVE_FROM_SUB_PATH=false
+      - GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS=
+      - GF_INSTALL_PLUGINS=grafana-clock-panel
+      - GF_DATABASE_WAL=true
+      - GF_DATABASE_CACHE_MODE=private
     networks:
       - {{ docker_network }}
     labels:
@@ -61,6 +66,7 @@ services:
   loki:
     image: grafana/loki:latest
     container_name: loki
+    user: "10001:10001"
     expose:
       - "3100"
     volumes:
@@ -111,6 +117,7 @@ services:
       - '--path.rootfs=/rootfs'
       - '--path.sysfs=/host/sys'
       - '--collector.filesystem.ignored-mount-points=^/(sys|proc|dev|host|etc)($|/)'
+      - '--no-collector.udev'
     networks:
       - {{ docker_network }}
 

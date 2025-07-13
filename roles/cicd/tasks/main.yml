@@ -7,6 +7,11 @@
   loop:
     - "{{ data_dir }}/jenkins"
     - "{{ data_dir }}/mattermost"
+    - "{{ data_dir }}/mattermost/config"
+    - "{{ data_dir }}/mattermost/data"
+    - "{{ data_dir }}/mattermost/logs"
+    - "{{ data_dir }}/mattermost/plugins"
+    - "{{ data_dir }}/mattermost/client-plugins"
     - "{{ config_dir }}/jenkins"
     - "{{ config_dir }}/mattermost"
 
@@ -15,7 +20,18 @@
     path: "{{ data_dir }}/jenkins"
     owner: 1000
     group: 1000
+    mode: '0755'
     recurse: true
+
+- name: Set Mattermost directory permissions
+  ansible.builtin.file:
+    path: "{{ item }}"
+    owner: 2000
+    group: 2000
+    mode: '0755'
+    recurse: true
+  loop:
+    - "{{ data_dir }}/mattermost"
 
 - name: Create Mattermost configuration
   ansible.builtin.template:

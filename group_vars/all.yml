@@ -9,10 +9,10 @@ data_dir: "{{ base_dir }}/data"
 config_dir: "{{ base_dir }}/config"
 logs_dir: "{{ base_dir }}/logs"
 
-# Domain configuration (update with your domain)
-domain: "nusatech.id"
+# Domain configuration (from vault)
+domain: "{{ vault_domain }}"
 use_ssl: true
-ssl_email: "admin@nusatech.id"
+ssl_email: "{{ vault_ssl_email }}"
 
 # Subdomains for services
 subdomains:
@@ -21,6 +21,12 @@ subdomains:
   grafana: "monitoring.{{ domain }}"
   prometheus: "metrics.{{ domain }}"
   alertmanager: "alerts.{{ domain }}"
+
+# Passwords (from vault)
+grafana_admin_password: "{{ vault_grafana_admin_password }}"
+traefik_admin_password: "{{ vault_traefik_admin_password }}"
+jenkins_admin_password: "{{ vault_jenkins_admin_password }}"
+postgres_admin_password: "{{ vault_db_password }}"
 
 # Resource allocation (optimized for 6GB RAM)
 services:
@@ -68,3 +74,8 @@ auto_updates_enabled: true
 backup_enabled: true
 backup_schedule: "0 2 * * *"  # Daily at 2 AM
 backup_retention_days: 7
+
+# Notification settings
+notifications:
+  mattermost_webhook: "{{ vault_mattermost_webhook_url | default('') }}"
+  slack_webhook: "{{ vault_slack_webhook_url | default('') }}"

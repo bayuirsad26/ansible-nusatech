@@ -6,7 +6,7 @@ serve_from_sub_path = false
 
 [security]
 admin_user = admin
-admin_password = Nusatech-2025
+admin_password = {{ grafana_admin_password }}
 
 [users]
 allow_sign_up = false
@@ -17,12 +17,18 @@ enabled = false
 [dashboards]
 default_home_dashboard_path = /var/lib/grafana/dashboards/overview.json
 
-[alerting]
+[unified_alerting]
 enabled = true
 
-[remote_cache]
-type = redis
+[alerting]
+# Remove this section - legacy alerting is deprecated
 
 [log]
 mode = console
 level = info
+
+[paths]
+data = /var/lib/grafana
+logs = /var/log/grafana
+plugins = /var/lib/grafana/plugins
+provisioning = /etc/grafana/provisioning

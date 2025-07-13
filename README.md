@@ -132,8 +132,8 @@ Jenkins comes pre-configured with:
 **Service won't start?**
 ```bash
 docker logs <container_name>
-docker-compose -f /opt/nusatech-devops/traefik-compose.yml logs
-docker-compose -f /opt/nusatech-devops/monitoring-compose.yml logs
+docker compose -f /opt/nusatech-devops/traefik-compose.yml logs
+docker compose -f /opt/nusatech-devops/monitoring-compose.yml logs
 ```
 
 **SSL certificate issues?**

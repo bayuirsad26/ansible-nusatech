@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   jenkins:
     image: jenkins/jenkins:lts
@@ -28,11 +26,31 @@ services:
           memory: {{ services.jenkins.memory_limit }}
           cpus: '{{ services.jenkins.cpu_limit }}'
 
+  postgres:
+    image: postgres:13
+    container_name: postgres
+    environment:
+      - POSTGRES_DB=mattermost
+      - POSTGRES_USER=mattermost
+      - POSTGRES_PASSWORD={{ postgres_admin_password }}
+      - POSTGRES_HOST_AUTH_METHOD=trust
+    volumes:
+      - "{{ data_dir }}/mattermost/postgres:/var/lib/postgresql/data"
+    networks:
+      - {{ docker_network }}
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+          cpus: '0.3'
+
   mattermost:
     image: mattermost/mattermost-team-edition:latest
     container_name: mattermost
     expose:
       - "8065"
+    depends_on:
+      - postgres
     volumes:
       - "{{ data_dir }}/mattermost/config:/mattermost/config:rw"
       - "{{ data_dir }}/mattermost/data:/mattermost/data:rw"
@@ -40,11 +58,13 @@ services:
       - "{{ data_dir }}/mattermost/plugins:/mattermost/plugins:rw"
       - "{{ data_dir }}/mattermost/client-plugins:/mattermost/client/plugins:rw"
     environment:
-      - MM_SQLSETTINGS_DRIVERNAME=sqlite3
-      - MM_SQLSETTINGS_DATASOURCE=/mattermost/data/mattermost.db
+      - MM_SQLSETTINGS_DRIVERNAME=postgres
+      - MM_SQLSETTINGS_DATASOURCE=postgres://mattermost:{{ postgres_admin_password }}@postgres:5432/mattermost?sslmode=disable&connect_timeout=10
       - MM_SERVICESETTINGS_SITEURL=https://{{ subdomains.mattermost }}
       - MM_SERVICESETTINGS_ENABLEBOTACCOUNTCREATION=true
       - MM_SERVICESETTINGS_ENABLEOAUTHSERVICEPROVIDER=true
+      - MM_FILESETTINGS_DRIVERNAME=local
+      - MM_FILESETTINGS_DIRECTORY=/mattermost/data/
     networks:
       - {{ docker_network }}
     labels:

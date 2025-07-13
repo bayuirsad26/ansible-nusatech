@@ -1,0 +1,54 @@
+{
+  "ServiceSettings": {
+    "SiteURL": "https://{{ subdomains.mattermost }}",
+    "ListenAddress": ":8065",
+    "ConnectionSecurity": "",
+    "TLSCertFile": "",
+    "TLSKeyFile": "",
+    "UseLetsEncrypt": false,
+    "LetsEncryptCertificateCacheFile": "./config/letsencrypt.cache",
+    "Forward80To443": false,
+    "ReadTimeout": 300,
+    "WriteTimeout": 300,
+    "MaximumLoginAttempts": 10,
+    "GoroutineHealthThreshold": -1,
+    "GoogleDeveloperKey": "",
+    "EnableBotAccountCreation": true,
+    "EnableUserAccessTokens": true,
+    "EnableLinkPreviews": false,
+    "EnableTesting": false,
+    "EnableDeveloper": false
+  },
+  "TeamSettings": {
+    "SiteName": "Nusatech DevOps",
+    "MaxUsersPerTeam": 50,
+    "EnableTeamCreation": true,
+    "EnableUserCreation": true,
+    "RestrictCreationToDomains": "{{ domain }}",
+    "RestrictTeamNames": true,
+    "EnableTeamListing": false
+  },
+  "SqlSettings": {
+    "DriverName": "sqlite3",
+    "DataSource": "/mattermost/data/mattermost.db",
+    "MaxIdleConns": 20,
+    "MaxOpenConns": 300,
+    "Trace": false,
+    "AtRestEncryptKey": ""
+  },
+  "LogSettings": {
+    "EnableConsole": true,
+    "ConsoleLevel": "INFO",
+    "EnableFile": true,
+    "FileLevel": "INFO",
+    "FileLocation": "/mattermost/logs/mattermost.log",
+    "EnableWebhookDebugging": true,
+    "EnableDiagnostics": false
+  },
+  "FileSettings": {
+    "EnableFileAttachments": true,
+    "MaxFileSize": 52428800,
+    "DriverName": "local",
+    "Directory": "/mattermost/data/"
+  }
+}

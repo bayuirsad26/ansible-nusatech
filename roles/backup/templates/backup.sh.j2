@@ -16,9 +16,9 @@ mkdir -p "${BACKUP_DIR}/${BACKUP_NAME}"
 # Stop services for consistent backup
 echo "Stopping services..."
 cd {{ base_dir }}
-docker-compose -f traefik-compose.yml stop
-docker-compose -f monitoring-compose.yml stop
-docker-compose -f cicd-compose.yml stop
+docker compose -f traefik-compose.yml stop
+docker compose -f monitoring-compose.yml stop
+docker compose -f cicd-compose.yml stop
 
 # Backup data directories
 echo "Backing up data..."
@@ -28,15 +28,29 @@ tar -czf "${BACKUP_DIR}/${BACKUP_NAME}/data.tar.gz" -C {{ base_dir }} data/
 echo "Backing up configurations..."
 tar -czf "${BACKUP_DIR}/${BACKUP_NAME}/config.tar.gz" -C {{ base_dir }} config/
 
-# Backup Docker images
-echo "Backing up Docker images..."
-docker save $(docker images --format "table {{.Repository}}:{{.Tag}}" | grep -v REPOSITORY) | gzip > "${BACKUP_DIR}/${BACKUP_NAME}/docker_images.tar.gz"
+# Backup compose files
+echo "Backing up compose files..."
+tar -czf "${BACKUP_DIR}/${BACKUP_NAME}/compose.tar.gz" -C {{ base_dir }} *.yml
+
+# List running containers for reference
+echo "Saving container list..."
+docker ps -a > "${BACKUP_DIR}/${BACKUP_NAME}/containers.txt"
+
+# Save Docker images list (without actual images to save space and avoid template issues)
+echo "Saving Docker images list..."
+docker images > "${BACKUP_DIR}/${BACKUP_NAME}/images.txt"
+
+# Backup specific Docker images (if needed)
+echo "Backing up critical Docker images..."
+docker save traefik:v3.0 | gzip > "${BACKUP_DIR}/${BACKUP_NAME}/traefik.tar.gz" 2>/dev/null || echo "Traefik image not found"
+docker save jenkins/jenkins:lts | gzip > "${BACKUP_DIR}/${BACKUP_NAME}/jenkins.tar.gz" 2>/dev/null || echo "Jenkins image not found"
+docker save grafana/grafana:latest | gzip > "${BACKUP_DIR}/${BACKUP_NAME}/grafana.tar.gz" 2>/dev/null || echo "Grafana image not found"
 
 # Start services again
 echo "Starting services..."
-docker-compose -f traefik-compose.yml up -d
-docker-compose -f monitoring-compose.yml up -d
-docker-compose -f cicd-compose.yml up -d
+docker compose -f traefik-compose.yml up -d
+docker compose -f monitoring-compose.yml up -d
+docker compose -f cicd-compose.yml up -d
 
 # Create backup archive
 echo "Creating final backup archive..."
@@ -52,6 +66,9 @@ echo "Backup completed successfully at $(date)"
 echo "Backup saved as: ${BACKUP_DIR}/${BACKUP_NAME}.tar.gz"
 
 # Send notification to Mattermost (optional)
-# curl -X POST http://localhost:{{ services.mattermost.port }}/hooks/YOUR_WEBHOOK_ID \
-#   -H 'Content-Type: application/json' \
-#   -d "{\"text\": \"✅ Nusatech DevOps backup completed: ${BACKUP_NAME}.tar.gz\"}"
+{% if notifications.mattermost_webhook and notifications.mattermost_webhook != '' %}
+curl -X POST "{{ notifications.mattermost_webhook }}" \
+  -H 'Content-Type: application/json' \
+  -d "{\"text\": \"✅ Nusatech DevOps backup completed: ${BACKUP_NAME}.tar.gz\"}" \
+  || echo "Failed to send Mattermost notification"
+{% endif %}

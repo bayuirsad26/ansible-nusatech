@@ -1,0 +1,19 @@
+---
+# Ansible Vault - Encrypted sensitive data
+# To edit: ansible-vault edit group_vars/vault.yml
+# To encrypt: ansible-vault encrypt group_vars/vault.yml
+
+vault_ssl_email: "admin@nusatech.id"
+vault_grafana_admin_password: "L6x8t/wOBBhSN5ORsCLomjM/f////ZlOWyiBD2hsvKA="
+vault_traefik_admin_password: "$2y$10$ql6vPo//rsFvFC7/r/9ErOjs0/mzVSznUfP0OlVxRFStPFIWIHusW"
+vault_jenkins_admin_password: "mO1gCGkToBP0TeyRsxMxox/aARtaJicoqVPbky0hwGU="
+vault_domain: "nusatech.id"
+
+# Database credentials (if needed later)
+vault_db_password: "yy3el0Z/MIxlab9/OLhENkFCQJ75CJuO0sRanBZTirw="
+vault_db_root_password: "sTLVAp0q7DhLHkaDJNGpNMxFJcFO5i5rwvrGrIpdrCs="
+
+# API Keys and tokens (add as needed)
+vault_monitoring_api_key: "your-monitoring-api-key"
+vault_slack_webhook_url: "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK"
+vault_mattermost_webhook_url: "https://your-mattermost.com/hooks/YOUR_WEBHOOK_ID"
